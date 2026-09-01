@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #140C0E;
+}
+::-webkit-scrollbar-thumb {
+  background: #7B1E28;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D8B26E;
+}
+
+/* Texture overlays */
+.paper-texture {
+  background-color: #FAF6EE;
+  background-image: radial-gradient(rgba(216, 178, 110, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.dark-texture {
+  background-color: #140C0E;
+  background-image: radial-gradient(rgba(216, 178, 110, 0.04) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* Gold shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, #D8B26E 0%, #FFF3D6 50%, #D8B26E 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmer 4s infinite linear;
+}
+
+/* Floating animation for pizza slice */
+@keyframes gentleFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.5deg);
+  }
+}
+
+.animate-gentle-float {
+  animation: gentleFloat 6s ease-in-out infinite;
+}
+
+/* Glow effects */
+.glow-gold {
+  filter: drop-shadow(0 0 15px rgba(216, 178, 110, 0.4));
+}
+
+.glow-wine {
+  filter: drop-shadow(0 0 20px rgba(123, 30, 40, 0.5));
+}
