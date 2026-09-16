@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CalendarDays, ChefHat, Brush, Sparkles, Diamond, Check, Pencil } from 'lucide-react';
+import { CalendarDays, ChefHat, Brush, Sparkles, Diamond, Check, Pencil, ArrowRight, ArrowLeft, Snowflake } from 'lucide-react';
+import ChamberStock from './components/ChamberStock';
 
 import { DAYS, REGISTERED_MEMBERS, DEFAULT_SCHEDULE, CURRENT_WEEK, createMonthlySchedule } from './data/schedule';
 import DayOffPicker from './components/DayOffPicker';
@@ -7,8 +8,14 @@ const TASKS = [{ id: 'cozinha', name: 'Cozinha', icon: ChefHat }, { id: 'vassour
 const STORAGE_KEY = `maktub_weekly_rotation_v4_${CURRENT_WEEK}`;
 const WEEK_DATES = Object.fromEntries(DAYS.map((day, index) => [day, new Date(Date.UTC(2026, 8, 15 + CURRENT_WEEK * 7 + index)).toISOString().slice(0, 10)]));
 const normalized = name => name.trim().toLocaleLowerCase('pt-BR');
+const PANELS = ['schedule', 'stock', 'cleaning', 'drinks'];
+const PANEL_TITLES = { schedule: 'Escala', stock: 'Câmara', cleaning: 'Produtos de limpeza', drinks: 'Refrigerantes' };
+const allowsDayOff = date => [2, 3, 4].includes(new Date(`${date}T12:00:00`).getDay());
 
 export default function App() {
+  const [panel, setPanel] = useState('schedule');
+  const previousPanel = PANELS[(PANELS.indexOf(panel) + PANELS.length - 1) % PANELS.length];
+  const nextPanel = PANELS[(PANELS.indexOf(panel) + 1) % PANELS.length];
   const [daysOff, setDaysOff] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('maktub_days_off_v1') || '{}');
@@ -16,10 +23,11 @@ export default function App() {
     } catch { return {}; }
   });
   const [assignmentError, setAssignmentError] = useState('');
-  const offNames = date => Array.isArray(daysOff[date]) ? daysOff[date].filter(name => typeof name === 'string') : [];
+  const offNames = date => allowsDayOff(date) && Array.isArray(daysOff[date]) ? daysOff[date].filter(name => typeof name === 'string') : [];
   const isOff = (date, name) => offNames(date).some(person => normalized(person) === normalized(name || ''));
   const visibleName = (date, name) => isOff(date, name) ? '' : name;
   function toggleDayOff(date, name) {
+    if (!allowsDayOff(date)) return;
     const current = offNames(date);
     const next = { ...daysOff, [date]: current.includes(name) ? current.filter(person => person !== name) : [...current, name] };
     setDaysOff(next);
@@ -28,6 +36,7 @@ export default function App() {
     catch { setSaveError(true); }
   }
   function dayOffControl(date) {
+    if (!allowsDayOff(date)) return null;
     return <div className="day-off-control"><DayOffPicker date={date} names={offNames(date)} onToggle={toggleDayOff} />{offNames(date).length > 0 && <span className="off-names">Em folga: {offNames(date).join(', ')}</span>}</div>;
   }
   const [view, setView] = useState('monthly');
@@ -83,11 +92,15 @@ export default function App() {
         <section className="schedule" aria-labelledby="schedule-title">
           <div className="schedule-heading">
             <div className="schedule-title">
-              <CalendarDays size={25} strokeWidth={1.4} aria-hidden="true" />
-              <div><h2 id="schedule-title">{view === 'monthly' ? 'Escala do mês' : 'Escala da semana'}</h2></div>
+              {panel !== 'schedule' ? <Snowflake size={25} strokeWidth={1.4} aria-hidden="true" /> : <CalendarDays size={25} strokeWidth={1.4} aria-hidden="true" />}
+              <div><h2 id="schedule-title">{panel !== 'schedule' ? PANEL_TITLES[panel] : view === 'monthly' ? 'Escala do mês' : 'Escala da semana'}</h2></div>
             </div>
-            <span className="schedule-tag">Terça a domingo</span>
+            <nav className="panel-navigation" aria-label="Navegar entre escala e estoques">
+              <button className="panel-arrow" type="button" aria-label={`Ir para ${PANEL_TITLES[previousPanel]}`} onClick={() => setPanel(previousPanel)}><ArrowLeft size={19} aria-hidden="true" /><span>{PANEL_TITLES[previousPanel]}</span></button>
+              <button className="panel-arrow" type="button" aria-label={`Ir para ${PANEL_TITLES[nextPanel]}`} onClick={() => setPanel(nextPanel)}><span>{PANEL_TITLES[nextPanel]}</span><ArrowRight size={19} aria-hidden="true" /></button>
+            </nav>
           </div>
+          {panel !== 'schedule' ? <div className="panel-turn" key={panel}><ChamberStock category={panel} /></div> : <div className="panel-turn" key="schedule">
           <div className="schedule-toolbar month-controls">
             <div className="view-switch" aria-label="Visualização da escala">
               <button type="button" aria-pressed={view === 'weekly'} onClick={() => { setView('weekly'); setIsEditing(false); }}>Semanal</button>
@@ -103,7 +116,7 @@ export default function App() {
             </button>
           </div>
           <datalist id="team-members">{REGISTERED_MEMBERS.map(name => <option key={name} value={name} />)}</datalist>
-          <p className="month-description">Use Folgas em cada dia para marcar funcionários ausentes. As vagas deles ficam em branco para escolher substitutos em Editar escala.</p>
+          <p className="month-description">Folgas disponíveis apenas às terças, quartas e quintas. As vagas deles ficam em branco para escolher substitutos em Editar escala.</p>
           {assignmentError && <p className="assignment-error" role="alert">{assignmentError}</p>}
           {view === 'monthly' ? <>
             <p className="month-description">{generatedMonth.dates.length} dias de trabalho · Segunda-feira sem escala · Duas pessoas por função</p>
@@ -136,13 +149,15 @@ export default function App() {
             </table>
           </div>}
           <div className="schedule-note"><span>{isEditing ? 'As mudanças são salvas automaticamente. Ao trocar nomes, confira o equilíbrio das tarefas.' : 'Clique em Editar escala para modificar os responsáveis.'}</span><span className={saveError ? 'save-error' : 'save-status'} role="status">{!saveError && <Check size={13} aria-hidden="true" />}{saveError ? 'Não foi possível salvar neste navegador.' : 'Salvo neste navegador'}</span></div>
+          </div>}
         </section>
-        <p className="below-note"><Diamond size={9} aria-hidden="true" />{view === 'monthly' ? 'Miguel e Ramon alternam terça e quarta na cozinha. O outro fica uma vez na semana. O rodízio continua entre os meses.' : 'Semana atual: Miguel e Ramon alternam quem assume a cozinha na terça e quarta. Duas pessoas por função.'}</p>
+        {panel === 'schedule' && <p className="below-note"><Diamond size={9} aria-hidden="true" />{view === 'monthly' ? 'Miguel e Ramon alternam terça e quarta na cozinha. O outro fica uma vez na semana. O rodízio continua entre os meses.' : 'Semana atual: Miguel e Ramon alternam quem assume a cozinha na terça e quarta. Duas pessoas por função.'}</p>}
       </main>
       <footer className="landing-footer"><span className="footer-brand">Maktub<span>PIZZARIA & ESFIHARIA</span></span><span>Organização & cuidado em cada detalhe.</span></footer>
     </div>
   );
 }
+
 
 
 
