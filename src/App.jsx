@@ -84,7 +84,7 @@ export default function App() {
           <div className="schedule-heading">
             <div className="schedule-title">
               <CalendarDays size={25} strokeWidth={1.4} aria-hidden="true" />
-              <div><h2 id="schedule-title">{view === 'monthly' ? 'Escala do mês' : 'Escala da semana'}</h2><p>Cozinha: tarefa pesada · Vassoura e pano: tarefas leves</p></div>
+              <div><h2 id="schedule-title">{view === 'monthly' ? 'Escala do mês' : 'Escala da semana'}</h2></div>
             </div>
             <span className="schedule-tag">Terça a domingo</span>
           </div>
@@ -143,5 +143,6 @@ export default function App() {
     </div>
   );
 }
+
 
 
