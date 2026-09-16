@@ -75,3 +75,17 @@ td input:focus { background: #fff; border-color: #a98247; box-shadow: 0 0 0 2px 
 .date-weekday { display: block; margin-top: 5px; font-size: 10px; font-weight: 400; color: #82736b; }
 .monthly-table td { padding: 10px; }
 @media(max-width: 640px) { .month-picker { flex-wrap: wrap; } .month-description { padding: 15px 18px; } }
+.day-off-control { margin-top: 10px; font-weight: 400; }
+.day-off-picker summary { cursor: pointer; padding: 7px 8px; border: 1px solid #dbc9a8; border-radius: 6px; color: #70292e; font-size: 10px; background: #fffaf0; }
+.day-off-options { margin-top: 8px; padding: 7px; background: #fffdf8; border: 1px solid #dbc9a8; border-radius: 8px; text-align: left; }
+.day-off-options p { font-size: 10px; margin: 0 0 6px; }
+.day-off-options label { display: flex; align-items: center; gap: 5px; padding: 6px 0; font-size: 10px; overflow-wrap: anywhere; cursor: pointer; }
+.day-off-options input { accent-color: #70292e; width: 14px; height: 14px; flex-shrink: 0; }
+.day-off-options small { display: block; font-size: 9px; line-height: 1.6; color: #82736b; }
+.off-names { display: block; margin-top: 7px; color: #883235; font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.assignment-error { margin: 0; padding: 12px 28px; background: #fff0e8; color: #883235; font-size: 12px; }
+.monthly-table th:first-child { width: 155px; }
+.weekly-days-off th, .weekly-days-off td { background: #f3ead8; border-top: 2px solid #d8b26e; }
+.weekly-off-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.weekly-off-list li { padding: 7px 5px; border-radius: 7px; background: #fffaf0; color: #70292e; font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
+.no-days-off { font-size: 10px; color: #8b7967; }

@@ -1,5 +1,7 @@
 export const DAYS = ['Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-export const TEAM = ['Miguel', 'Ramon', 'Angelina', 'Ana Paula', 'Maia', 'Flavia'];
+export const TEAM = ['Miguel', 'Ramon', 'Angelina', 'Ana Paula', 'Maia', 'Flavia', 'Jamile'];
+// Available for manual selection only; automatic scheduling uses TEAM.
+export const REGISTERED_MEMBERS = [...TEAM, 'Lara', 'Ita', 'Dami', 'Patricia', 'Alex'];
 const WEEK_MS = 7 * 86400000;
 const ANCHOR = Date.UTC(2026, 8, 14); // Monday: Miguel starts the alternating cycle.
 const mod = (value, divisor) => ((value % divisor) + divisor) % divisor;
@@ -11,15 +13,26 @@ export function getWeekIndex(date) {
 export function createWeeklySchedule(weekIndex) {
   const lead = TEAM[mod(weekIndex, 2)];
   const other = TEAM[1 - mod(weekIndex, 2)];
-  const rest = Array.from({ length: 4 }, (_, i) => TEAM[2 + mod(i + weekIndex, 4)]);
-  const [a, b, c, d] = rest;
-  // Nine remaining kitchen slots: 3 for one person, 2 for each of the others.
-  // Rotate the extra slot every week among the four other team members.
-  const kitchen = [[lead, a], [lead, b], [other, c], [a, d], [b, c], [a, d]];
+  const rest = Array.from({ length: 5 }, (_, i) => TEAM[2 + mod(i + weekIndex, 5)]);
+  const [a, b, c, d, e] = rest;
+  // Rotate nine kitchen slots among the other five members (2, 2, 2, 2, 1).
+  const kitchen = [[lead, a], [lead, b], [other, c], [d, e], [a, b], [c, d]];
+  // Six distinct people have one day without these tasks; rotate the seventh.
+  const candidates = TEAM.filter(name => name !== TEAM[mod(weekIndex, TEAM.length)]);
+  function assignUnscheduled(index, remaining) {
+    if (index === DAYS.length) return [];
+    for (const name of remaining) {
+      if (kitchen[index].includes(name)) continue;
+      const tail = assignUnscheduled(index + 1, remaining.filter(person => person !== name));
+      if (tail) return [name, ...tail];
+    }
+    return null;
+  }
+  const unscheduled = assignUnscheduled(0, candidates);
   const lightBalance = Object.fromEntries(TEAM.map(name => [name, 0]));
   const schedule = {};
   DAYS.forEach((day, index) => {
-    const available = TEAM.filter(name => !kitchen[index].includes(name));
+    const available = TEAM.filter(name => !kitchen[index].includes(name) && name !== unscheduled[index]);
     let best;
     let bestScore = Infinity;
     for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {

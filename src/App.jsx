@@ -1,11 +1,35 @@
 import React, { useState } from 'react';
 import { CalendarDays, ChefHat, Brush, Sparkles, Diamond, Check, Pencil } from 'lucide-react';
 
-import { DAYS, TEAM, DEFAULT_SCHEDULE, CURRENT_WEEK, createMonthlySchedule } from './data/schedule';
+import { DAYS, REGISTERED_MEMBERS, DEFAULT_SCHEDULE, CURRENT_WEEK, createMonthlySchedule } from './data/schedule';
+import DayOffPicker from './components/DayOffPicker';
 const TASKS = [{ id: 'cozinha', name: 'Cozinha', icon: ChefHat }, { id: 'vassoura', name: 'Vassoura', icon: Brush }, { id: 'pano', name: 'Pano', icon: Sparkles }];
 const STORAGE_KEY = `maktub_weekly_rotation_v4_${CURRENT_WEEK}`;
+const WEEK_DATES = Object.fromEntries(DAYS.map((day, index) => [day, new Date(Date.UTC(2026, 8, 15 + CURRENT_WEEK * 7 + index)).toISOString().slice(0, 10)]));
+const normalized = name => name.trim().toLocaleLowerCase('pt-BR');
 
 export default function App() {
+  const [daysOff, setDaysOff] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('maktub_days_off_v1') || '{}');
+      return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+    } catch { return {}; }
+  });
+  const [assignmentError, setAssignmentError] = useState('');
+  const offNames = date => Array.isArray(daysOff[date]) ? daysOff[date].filter(name => typeof name === 'string') : [];
+  const isOff = (date, name) => offNames(date).some(person => normalized(person) === normalized(name || ''));
+  const visibleName = (date, name) => isOff(date, name) ? '' : name;
+  function toggleDayOff(date, name) {
+    const current = offNames(date);
+    const next = { ...daysOff, [date]: current.includes(name) ? current.filter(person => person !== name) : [...current, name] };
+    setDaysOff(next);
+    setAssignmentError('');
+    try { localStorage.setItem('maktub_days_off_v1', JSON.stringify(next)); setSaveError(false); }
+    catch { setSaveError(true); }
+  }
+  function dayOffControl(date) {
+    return <div className="day-off-control"><DayOffPicker date={date} names={offNames(date)} onToggle={toggleDayOff} />{offNames(date).length > 0 && <span className="off-names">Em folga: {offNames(date).join(', ')}</span>}</div>;
+  }
   const [view, setView] = useState('monthly');
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -28,6 +52,8 @@ export default function App() {
   const [saveError, setSaveError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   function updateMonthlyCell(key, slot, value) {
+    if (isOff(key.slice(key.indexOf('-') + 1), value)) { setAssignmentError(`${value} está de folga nesse dia. Escolha outro integrante.`); return; }
+    setAssignmentError('');
     const pair = [...(monthlySchedule[key] || generatedMonth.schedule[key])];
     pair[slot] = value;
     const next = { ...monthlyEdits, [month]: { ...monthlyEdits[month], [key]: pair } };
@@ -36,6 +62,8 @@ export default function App() {
     catch { setSaveError(true); }
   }
   function updateCell(key, slot, value) {
+    if (isOff(WEEK_DATES[key.slice(key.indexOf('-') + 1)], value)) { setAssignmentError(`${value} está de folga nesse dia. Escolha outro integrante.`); return; }
+    setAssignmentError('');
     const pair = Array.isArray(schedule[key]) ? [...schedule[key]] : [...DEFAULT_SCHEDULE[key]];
     pair[slot] = value;
     const next = { ...schedule, [key]: pair };
@@ -74,7 +102,9 @@ export default function App() {
               {isEditing ? 'Concluir edição' : 'Editar escala'}
             </button>
           </div>
-          <datalist id="team-members">{TEAM.map(name => <option key={name} value={name} />)}</datalist>
+          <datalist id="team-members">{REGISTERED_MEMBERS.map(name => <option key={name} value={name} />)}</datalist>
+          <p className="month-description">Use Folgas em cada dia para marcar funcionários ausentes. As vagas deles ficam em branco para escolher substitutos em Editar escala.</p>
+          {assignmentError && <p className="assignment-error" role="alert">{assignmentError}</p>}
           {view === 'monthly' ? <>
             <p className="month-description">{generatedMonth.dates.length} dias de trabalho · Segunda-feira sem escala · Duas pessoas por função</p>
             <div className="table-scroll" role="region" aria-label="Escala mensal por data" tabIndex={0}>
@@ -82,8 +112,8 @@ export default function App() {
                 <caption>Escala mensal de {month}</caption>
                 <thead><tr><th scope="col">DATA</th>{TASKS.map(task => <th scope="col" key={task.id}>{task.name}</th>)}</tr></thead>
                 <tbody>{generatedMonth.dates.map(date => <tr key={date.iso}>
-                  <th scope="row">{date.label}<span className="date-weekday">{date.weekday}</span></th>
-                  {TASKS.map(task => { const key = `${task.id}-${date.iso}`; return <td key={key}><div className="task-pair">{[0, 1].map(slot => <input key={slot} readOnly={!isEditing} list={isEditing ? 'team-members' : undefined} aria-label={`${task.name} — ${date.iso}: responsável ${slot + 1}`} placeholder="Adicionar nome" maxLength={60} value={typeof monthlySchedule[key]?.[slot] === 'string' ? monthlySchedule[key][slot] : generatedMonth.schedule[key][slot]} onChange={event => updateMonthlyCell(key, slot, event.target.value)} />)}</div></td>; })}
+                  <th scope="row">{date.label}<span className="date-weekday">{date.weekday}</span>{dayOffControl(date.iso)}</th>
+                  {TASKS.map(task => { const key = `${task.id}-${date.iso}`; return <td key={key}><div className="task-pair">{[0, 1].map(slot => <input key={slot} readOnly={!isEditing} list={isEditing ? 'team-members' : undefined} aria-label={`${task.name} — ${date.iso}: responsável ${slot + 1}`} placeholder="Adicionar nome" maxLength={60} value={visibleName(date.iso, typeof monthlySchedule[key]?.[slot] === 'string' ? monthlySchedule[key][slot] : generatedMonth.schedule[key][slot])} onChange={event => updateMonthlyCell(key, slot, event.target.value)} />)}</div></td>; })}
                 </tr>)}</tbody>
               </table>
             </div>
@@ -91,11 +121,18 @@ export default function App() {
           <div className="table-scroll" role="region" aria-label="Escala semanal — deslize para ver todos os dias" tabIndex={0}>
             <table>
               <caption>Responsáveis pelas tarefas da Maktub, de terça a domingo</caption>
-              <thead><tr><th scope="col">TAREFA</th>{DAYS.map((day, index) => <th scope="col" key={day}><span className="day-number">0{index + 1}</span>{day}</th>)}</tr></thead>
+              <thead><tr><th scope="col">TAREFA</th>{DAYS.map((day, index) => <th scope="col" key={day}><span className="day-number">{WEEK_DATES[day].slice(8)}/{WEEK_DATES[day].slice(5, 7)}</span>{day}{dayOffControl(WEEK_DATES[day])}</th>)}</tr></thead>
               <tbody>{TASKS.map(({ id, name, icon: Icon }) => <tr key={id}>
                 <th scope="row"><span className="task-label"><Icon size={17} strokeWidth={1.5} aria-hidden="true" />{name}</span></th>
-                {DAYS.map(day => { const key = `${id}-${day}`; return <td key={key}><div className="task-pair">{[0, 1].map(slot => <input key={slot} readOnly={!isEditing} list={isEditing ? 'team-members' : undefined} aria-label={`${name} — ${day}: responsável ${slot + 1}`} placeholder="Adicionar nome" maxLength={60} value={typeof schedule[key]?.[slot] === 'string' ? schedule[key][slot] : DEFAULT_SCHEDULE[key][slot]} onChange={event => updateCell(key, slot, event.target.value)} />)}</div></td>; })}
-              </tr>)}</tbody>
+                {DAYS.map(day => { const key = `${id}-${day}`; return <td key={key}><div className="task-pair">{[0, 1].map(slot => <input key={slot} readOnly={!isEditing} list={isEditing ? 'team-members' : undefined} aria-label={`${name} — ${day}: responsável ${slot + 1}`} placeholder="Adicionar nome" maxLength={60} value={visibleName(WEEK_DATES[day], typeof schedule[key]?.[slot] === 'string' ? schedule[key][slot] : DEFAULT_SCHEDULE[key][slot])} onChange={event => updateCell(key, slot, event.target.value)} />)}</div></td>; })}
+              </tr>)}
+                <tr className="weekly-days-off">
+                  <th scope="row"><span className="task-label"><CalendarDays size={17} aria-hidden="true" />Folgas</span></th>
+                  {DAYS.map(day => <td key={day} aria-live="polite">
+                    {offNames(WEEK_DATES[day]).length ? <ul className="weekly-off-list">{offNames(WEEK_DATES[day]).map(name => <li key={name}>{name}</li>)}</ul> : <span className="no-days-off">Nenhuma folga</span>}
+                  </td>)}
+                </tr>
+              </tbody>
             </table>
           </div>}
           <div className="schedule-note"><span>{isEditing ? 'As mudanças são salvas automaticamente. Ao trocar nomes, confira o equilíbrio das tarefas.' : 'Clique em Editar escala para modificar os responsáveis.'}</span><span className={saveError ? 'save-error' : 'save-status'} role="status">{!saveError && <Check size={13} aria-hidden="true" />}{saveError ? 'Não foi possível salvar neste navegador.' : 'Salvo neste navegador'}</span></div>
@@ -106,4 +143,5 @@ export default function App() {
     </div>
   );
 }
+
 
